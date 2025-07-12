@@ -127,6 +127,25 @@ const swapRequestSchema = new mongoose.Schema({
     isArchived: {
         type: Boolean,
         default: false
+    },
+    isFlagged: {
+        type: Boolean,
+        default: false
+    },
+    flagReason: {
+        type: String,
+        maxlength: [500, 'Flag reason cannot exceed 500 characters']
+    },
+    flaggedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    flaggedAt: {
+        type: Date
+    },
+    adminNotes: {
+        type: String,
+        maxlength: [1000, 'Admin notes cannot exceed 1000 characters']
     }
 }, {
     timestamps: true

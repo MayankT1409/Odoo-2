@@ -10,6 +10,7 @@ const fs = require('fs');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const swapRoutes = require('./routes/swapRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 

@@ -45,16 +45,48 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link 
-              to="/" 
-              className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-1"
-            >
-              <HomeIcon className="w-4 h-4" />
-              <span>Home</span>
-            </Link>
-
-            {user ? (
+            {user && user.role === 'admin' ? (
+              // Admin Navigation
               <>
+                <Link 
+                  to="/admin/dashboard" 
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-1"
+                >
+                  <HomeIcon className="w-4 h-4" />
+                  <span>Dashboard</span>
+                </Link>
+                <Link 
+                  to="/admin/users" 
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-1"
+                >
+                  <UserIcon className="w-4 h-4" />
+                  <span>Users</span>
+                </Link>
+                <Link 
+                  to="/admin/swaps" 
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-1"
+                >
+                  <ClipboardDocumentListIcon className="w-4 h-4" />
+                  <span>Swaps</span>
+                </Link>
+                <Link 
+                  to="/admin/moderation" 
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-1"
+                >
+                  <Cog6ToothIcon className="w-4 h-4" />
+                  <span>Moderation</span>
+                </Link>
+              </>
+            ) : user ? (
+              // User Navigation
+              <>
+                <Link 
+                  to="/" 
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-1"
+                >
+                  <HomeIcon className="w-4 h-4" />
+                  <span>Home</span>
+                </Link>
                 <Link 
                   to="/profile" 
                   className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-1"
@@ -69,35 +101,40 @@ const Navbar = () => {
                   <ClipboardDocumentListIcon className="w-4 h-4" />
                   <span>Swap Requests</span>
                 </Link>
-                {user.role === 'admin' && (
-                  <Link 
-                    to="/admin" 
-                    className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-1"
-                  >
-                    <Cog6ToothIcon className="w-4 h-4" />
-                    <span>Admin</span>
-                  </Link>
-                )}
-                
-                {/* User Menu */}
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <img 
-                      src={user.avatar} 
-                      alt={user.name}
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
-                    <span className="text-sm font-medium text-gray-700">{user.name}</span>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="text-gray-500 hover:text-red-600 p-2 rounded-md transition-colors duration-200"
-                    title="Logout"
-                  >
-                    <ArrowRightOnRectangleIcon className="w-5 h-5" />
-                  </button>
-                </div>
               </>
+            ) : (
+              // Guest Navigation
+              <Link 
+                to="/" 
+                className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-1"
+              >
+                <HomeIcon className="w-4 h-4" />
+                <span>Home</span>
+              </Link>
+            )}
+
+            {user ? (
+              /* User Menu with Profile Photo */
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-medium text-sm">
+                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">{user.name}</span>
+                  {user.role === 'admin' && (
+                    <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
+                      Admin
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="text-gray-500 hover:text-red-600 p-2 rounded-md transition-colors duration-200"
+                  title="Logout"
+                >
+                  <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                </button>
+              </div>
             ) : (
               <div className="flex items-center space-x-4">
                 <Link 
@@ -135,17 +172,69 @@ const Navbar = () => {
         {isMenuOpen && (
           <div className="md:hidden border-t border-gray-200 py-4">
             <div className="flex flex-col space-y-2">
-              <Link 
-                to="/" 
-                onClick={() => setIsMenuOpen(false)}
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
-              >
-                <HomeIcon className="w-4 h-4" />
-                <span>Home</span>
-              </Link>
-
-              {user ? (
+              {user && user.role === 'admin' ? (
+                // Admin Mobile Navigation
                 <>
+                  <Link 
+                    to="/admin/dashboard" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
+                  >
+                    <HomeIcon className="w-4 h-4" />
+                    <span>Dashboard</span>
+                  </Link>
+                  <Link 
+                    to="/admin/users" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
+                  >
+                    <UserIcon className="w-4 h-4" />
+                    <span>Users</span>
+                  </Link>
+                  <Link 
+                    to="/admin/swaps" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
+                  >
+                    <ClipboardDocumentListIcon className="w-4 h-4" />
+                    <span>Swaps</span>
+                  </Link>
+                  <Link 
+                    to="/admin/moderation" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
+                  >
+                    <Cog6ToothIcon className="w-4 h-4" />
+                    <span>Moderation</span>
+                  </Link>
+                  <Link 
+                    to="/admin/messages" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
+                  >
+                    <Cog6ToothIcon className="w-4 h-4" />
+                    <span>Messages</span>
+                  </Link>
+                  <Link 
+                    to="/admin/reports" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
+                  >
+                    <Cog6ToothIcon className="w-4 h-4" />
+                    <span>Reports</span>
+                  </Link>
+                </>
+              ) : user ? (
+                // User Mobile Navigation
+                <>
+                  <Link 
+                    to="/" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
+                  >
+                    <HomeIcon className="w-4 h-4" />
+                    <span>Home</span>
+                  </Link>
                   <Link 
                     to="/profile" 
                     onClick={() => setIsMenuOpen(false)}
@@ -162,24 +251,31 @@ const Navbar = () => {
                     <ClipboardDocumentListIcon className="w-4 h-4" />
                     <span>Swap Requests</span>
                   </Link>
-                  {user.role === 'admin' && (
-                    <Link 
-                      to="/admin" 
-                      onClick={() => setIsMenuOpen(false)}
-                      className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
-                    >
-                      <Cog6ToothIcon className="w-4 h-4" />
-                      <span>Admin</span>
-                    </Link>
-                  )}
-                  
-                  <div className="flex items-center space-x-2 px-3 py-2">
-                    <img 
-                      src={user.avatar} 
-                      alt={user.name}
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
-                    <span className="text-sm font-medium text-gray-700">{user.name}</span>
+                </>
+              ) : (
+                // Guest Mobile Navigation
+                <Link 
+                  to="/" 
+                  onClick={() => setIsMenuOpen(false)}
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
+                >
+                  <HomeIcon className="w-4 h-4" />
+                  <span>Home</span>
+                </Link>
+              )}
+
+              {user ? (
+                <>
+                  <div className="flex items-center space-x-2 px-3 py-2 border-t border-gray-200 mt-2 pt-4">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-medium text-sm">
+                      {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">{user.name}</span>
+                      {user.role === 'admin' && (
+                        <div className="text-xs text-purple-600 font-medium">Administrator</div>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={handleLogout}

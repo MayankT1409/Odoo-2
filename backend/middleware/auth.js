@@ -112,10 +112,13 @@ const adminAuth = async (req, res, next) => {
         next();
     } catch (err) {
         console.error("Admin auth error:", err);
-        res.status(401).json({
-            success: false,
-            message: "Authentication failed"
-        });
+        // Don't send response if headers already sent
+        if (!res.headersSent) {
+            res.status(401).json({
+                success: false,
+                message: "Authentication failed"
+            });
+        }
     }
 };
 

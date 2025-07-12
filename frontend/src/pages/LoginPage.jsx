@@ -21,7 +21,12 @@ const LoginPage = () => {
     try {
       const result = await login(email, password);
       if (result.success) {
-        navigate('/');
+        // Redirect based on user role
+        if (result.user && result.user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/');
+        }
       } else {
         setError(result.error || 'Login failed');
       }
@@ -46,7 +51,12 @@ const LoginPage = () => {
     try {
       const result = await login(demoEmail, demoPassword);
       if (result.success) {
-        navigate('/');
+        // Redirect based on user role
+        if (result.user && result.user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/');
+        }
       } else {
         setError(result.error || 'Demo login failed');
       }

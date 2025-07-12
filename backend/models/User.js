@@ -115,7 +115,35 @@ const UserSchema = new mongoose.Schema(
     lastLoginAt: {
       type: Date,
       default: Date.now
-    }
+    },
+    banReason: {
+      type: String,
+      default: null
+    },
+    bannedAt: {
+      type: Date,
+      default: null
+    },
+    bannedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    moderationHistory: [{
+      date: { type: Date, default: Date.now },
+      moderator: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      action: { type: String, enum: ['skills_moderated', 'content_removed', 'warning_issued', 'other'] },
+      note: { type: String, maxlength: 500 }
+    }],
+    notifications: [{
+      title: { type: String, required: true },
+      message: { type: String, required: true },
+      type: { type: String, enum: ['info', 'warning', 'maintenance', 'feature'], default: 'info' },
+      priority: { type: String, enum: ['low', 'medium', 'high', 'urgent'], default: 'medium' },
+      read: { type: Boolean, default: false },
+      receivedAt: { type: Date, default: Date.now },
+      sentBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    }]
   },
   { timestamps: true }
 );
