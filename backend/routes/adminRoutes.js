@@ -3,9 +3,11 @@ const { body, validationResult, query } = require('express-validator');
 const User = require('../models/User');
 const SwapRequest = require('../models/SwapRequest');
 const Review = require('../models/Review');
+const Notification = require('../models/Notification');
+const Message = require('../models/Message');
 const { adminAuth } = require('../middleware/auth');
 const router = express.Router();
-const adminController = require('../controllers/adminController');
+// const adminController = require('../controllers/adminController');
 
 // Get admin dashboard statistics
 router.get('/dashboard', adminAuth, async (req, res) => {
@@ -346,73 +348,6 @@ router.delete('/users/:userId', adminAuth, async (req, res) => {
     }
 });
 
-// Ban/Unban user
-router.put('/users/:userId/ban', adminAuth, [
-    body('isBanned').isBoolean(),
-    body('banReason').optional().trim().isLength({ min: 1, max: 500 })
-], async (req, res) => {
-    try {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({
-                success: false,
-                message: 'Validation failed',
-                errors: errors.array()
-            });
-        }
-
-        const { userId } = req.params;
-        const { isBanned, banReason } = req.body;
-
-        // Don't allow admin to ban themselves
-        if (userId === req.user) {
-            return res.status(400).json({
-                success: false,
-                message: 'Cannot ban your own account'
-            });
-        }
-
-        const updateData = {
-            isActive: !isBanned
-        };
-
-        if (isBanned) {
-            updateData.banReason = banReason;
-            updateData.bannedAt = new Date();
-            updateData.bannedBy = req.user;
-        } else {
-            updateData.banReason = null;
-            updateData.bannedAt = null;
-            updateData.bannedBy = null;
-        }
-
-        const user = await User.findByIdAndUpdate(
-            userId,
-            { $set: updateData },
-            { new: true, runValidators: true }
-        ).select('-password -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires');
-
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-
-        res.json({
-            success: true,
-            message: isBanned ? 'User banned successfully' : 'User unbanned successfully',
-            data: { user }
-        });
-
-    } catch (err) {
-        console.error('Admin ban user error:', err);
-        res.status(500).json({
-            success: false,
-            message: 'Server error while updating user ban status'
-        });
-    }
-});
 
 // Get all swap requests
 router.get('/swaps', adminAuth, [
@@ -1050,36 +985,20 @@ router.post('/messages/broadcast', adminAuth, [
 
         const { title, message, type, priority = 'medium' } = req.body;
 
-        // Create a system message (you might want to create a Message model for this)
-        const broadcastMessage = {
+        // Create broadcast notification using the Notification model
+        const broadcastNotification = await Notification.createBroadcast({
             title,
             message,
             type,
             priority,
             sentBy: req.user.id,
-            sentAt: new Date(),
             isActive: true
-        };
-
-        // For now, we'll add this to all users' notification arrays
-        // In a real app, you might want a separate notifications/messages collection
-        await User.updateMany(
-            { isActive: true },
-            {
-                $push: {
-                    notifications: {
-                        ...broadcastMessage,
-                        read: false,
-                        receivedAt: new Date()
-                    }
-                }
-            }
-        );
+        });
 
         res.json({
             success: true,
-            message: 'Broadcast message sent successfully',
-            data: { broadcastMessage }
+            message: 'Broadcast notification sent successfully',
+            data: { notification: broadcastNotification }
         });
 
     } catch (err) {
@@ -1302,6 +1221,706 @@ router.get('/reports/:reportType', adminAuth, [
         res.status(500).json({
             success: false,
             message: 'Server error while generating report'
+        });
+    }
+});
+
+// Flag/Unflag swap request for review
+router.put('/swaps/:swapId/flag', adminAuth, [
+    body('isFlagged').isBoolean().withMessage('isFlagged must be a boolean'),
+    body('flagReason').optional().trim().isLength({ max: 500 }).withMessage('Flag reason cannot exceed 500 characters')
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation failed',
+                errors: errors.array()
+            });
+        }
+
+        const { swapId } = req.params;
+        const { isFlagged, flagReason } = req.body;
+
+        const updateData = {
+            isFlagged,
+            flagReason: isFlagged ? flagReason : null,
+            flaggedAt: isFlagged ? new Date() : null,
+            flaggedBy: isFlagged ? req.user.id : null
+        };
+
+        const swapRequest = await SwapRequest.findByIdAndUpdate(
+            swapId,
+            { $set: updateData },
+            { new: true }
+        ).populate('requester', 'name email')
+          .populate('recipient', 'name email');
+
+        if (!swapRequest) {
+            return res.status(404).json({
+                success: false,
+                message: 'Swap request not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: `Swap request ${isFlagged ? 'flagged' : 'unflagged'} successfully`,
+            data: { swapRequest }
+        });
+
+    } catch (err) {
+        console.error('Admin flag swap error:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while flagging swap request'
+        });
+    }
+});
+
+// Get system health and performance metrics
+router.get('/system/health', adminAuth, async (req, res) => {
+    try {
+        const [
+            totalUsers,
+            activeUsers,
+            totalSwaps,
+            activeSwaps,
+            totalReviews,
+            flaggedContent,
+            recentActivity,
+            systemLoad
+        ] = await Promise.all([
+            User.countDocuments(),
+            User.countDocuments({ isActive: true }),
+            SwapRequest.countDocuments(),
+            SwapRequest.countDocuments({ status: { $in: ['pending', 'accepted'] } }),
+            Review.countDocuments(),
+            SwapRequest.countDocuments({ isFlagged: true }),
+            
+            // Recent activity (last 24 hours)
+            Promise.all([
+                User.countDocuments({ 
+                    createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+                }),
+                SwapRequest.countDocuments({ 
+                    createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+                }),
+                Review.countDocuments({ 
+                    createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+                })
+            ]),
+            
+            // System load indicators
+            {
+                uptime: process.uptime(),
+                memoryUsage: process.memoryUsage(),
+                nodeVersion: process.version
+            }
+        ]);
+
+        const [newUsers24h, newSwaps24h, newReviews24h] = recentActivity;
+
+        res.json({
+            success: true,
+            data: {
+                overview: {
+                    totalUsers,
+                    activeUsers,
+                    totalSwaps,
+                    activeSwaps,
+                    totalReviews,
+                    flaggedContent,
+                    userActivityRate: totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0,
+                    swapSuccessRate: totalSwaps > 0 ? 
+                        Math.round((await SwapRequest.countDocuments({ status: 'completed' }) / totalSwaps) * 100) : 0
+                },
+                recentActivity: {
+                    newUsers24h,
+                    newSwaps24h,
+                    newReviews24h
+                },
+                systemHealth: {
+                    status: 'healthy', // You can implement more sophisticated health checks
+                    uptime: Math.floor(systemLoad.uptime / 3600), // hours
+                    memoryUsage: {
+                        used: Math.round(systemLoad.memoryUsage.heapUsed / 1024 / 1024), // MB
+                        total: Math.round(systemLoad.memoryUsage.heapTotal / 1024 / 1024) // MB
+                    },
+                    nodeVersion: systemLoad.nodeVersion
+                }
+            }
+        });
+
+    } catch (err) {
+        console.error('Get system health error:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while fetching system health'
+        });
+    }
+});
+
+// Advanced analytics with custom date ranges and filters
+router.get('/analytics/advanced', adminAuth, [
+    query('startDate').optional().isISO8601().toDate(),
+    query('endDate').optional().isISO8601().toDate(),
+    query('groupBy').optional().isIn(['day', 'week', 'month']),
+    query('metrics').optional().isArray()
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid query parameters',
+                errors: errors.array()
+            });
+        }
+
+        const { 
+            startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 
+            endDate = new Date(),
+            groupBy = 'day',
+            metrics = ['users', 'swaps', 'reviews']
+        } = req.query;
+
+        const dateFormat = {
+            day: '%Y-%m-%d',
+            week: '%Y-%U',
+            month: '%Y-%m'
+        };
+
+        const analyticsData = {};
+
+        // User analytics
+        if (metrics.includes('users')) {
+            analyticsData.userMetrics = await User.aggregate([
+                { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+                {
+                    $group: {
+                        _id: { $dateToString: { format: dateFormat[groupBy], date: '$createdAt' } },
+                        newUsers: { $sum: 1 },
+                        activeUsers: { $sum: { $cond: ['$isActive', 1, 0] } }
+                    }
+                },
+                { $sort: { _id: 1 } }
+            ]);
+        }
+
+        // Swap analytics
+        if (metrics.includes('swaps')) {
+            analyticsData.swapMetrics = await SwapRequest.aggregate([
+                { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+                {
+                    $group: {
+                        _id: {
+                            date: { $dateToString: { format: dateFormat[groupBy], date: '$createdAt' } },
+                            status: '$status'
+                        },
+                        count: { $sum: 1 }
+                    }
+                },
+                { $sort: { '_id.date': 1 } }
+            ]);
+        }
+
+        // Review analytics
+        if (metrics.includes('reviews')) {
+            analyticsData.reviewMetrics = await Review.aggregate([
+                { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+                {
+                    $group: {
+                        _id: { $dateToString: { format: dateFormat[groupBy], date: '$createdAt' } },
+                        totalReviews: { $sum: 1 },
+                        averageRating: { $avg: '$rating.overall' },
+                        positiveReviews: { $sum: { $cond: [{ $gte: ['$rating.overall', 4] }, 1, 0] } }
+                    }
+                },
+                { $sort: { _id: 1 } }
+            ]);
+        }
+
+        // Skill popularity
+        if (metrics.includes('skills')) {
+            analyticsData.skillPopularity = await User.aggregate([
+                { $unwind: '$skillsOffered' },
+                { $group: { _id: '$skillsOffered', count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 20 }
+            ]);
+        }
+
+        // Geographic distribution
+        if (metrics.includes('geography')) {
+            analyticsData.geographicData = await User.aggregate([
+                { $match: { location: { $ne: '' } } },
+                { $group: { _id: '$location', userCount: { $sum: 1 } } },
+                { $sort: { userCount: -1 } },
+                { $limit: 15 }
+            ]);
+        }
+
+        res.json({
+            success: true,
+            data: {
+                dateRange: { startDate, endDate },
+                groupBy,
+                metrics,
+                analytics: analyticsData
+            }
+        });
+
+    } catch (err) {
+        console.error('Advanced analytics error:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while generating advanced analytics'
+        });
+    }
+});
+
+// Content moderation dashboard
+router.get('/moderation/dashboard', adminAuth, async (req, res) => {
+    try {
+        const [
+            flaggedSwaps,
+            reportedUsers,
+            pendingReviews,
+            recentModerationActions,
+            contentStats
+        ] = await Promise.all([
+            // Flagged swap requests
+            SwapRequest.find({ isFlagged: true })
+                .populate('requester', 'name email')
+                .populate('recipient', 'name email')
+                .populate('flaggedBy', 'name')
+                .sort({ flaggedAt: -1 })
+                .limit(10)
+                .lean(),
+
+            // Reported/banned users
+            User.find({ 
+                $or: [
+                    { isActive: false, banReason: { $exists: true } },
+                    { reportCount: { $gt: 0 } }
+                ]
+            })
+                .select('name email isActive banReason bannedAt reportCount')
+                .sort({ bannedAt: -1 })
+                .limit(10)
+                .lean(),
+
+            // Reviews that might need moderation (very low ratings)
+            Review.find({ 'rating.overall': { $lte: 2 }, isHidden: { $ne: true } })
+                .populate('reviewer', 'name email')
+                .populate('reviewee', 'name email')
+                .sort({ createdAt: -1 })
+                .limit(10)
+                .lean(),
+
+            // Recent moderation actions (last 7 days)
+            User.find({
+                $or: [
+                    { bannedAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+                    { 'moderationHistory.date': { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } }
+                ]
+            })
+                .select('name email bannedAt moderationHistory')
+                .sort({ bannedAt: -1 })
+                .limit(5)
+                .lean(),
+
+            // Content statistics
+            {
+                totalFlagged: await SwapRequest.countDocuments({ isFlagged: true }),
+                totalBanned: await User.countDocuments({ isActive: false, banReason: { $exists: true } }),
+                totalHiddenReviews: await Review.countDocuments({ isHidden: true }),
+                pendingFlags: await SwapRequest.countDocuments({ 
+                    isFlagged: true, 
+                    adminNotes: { $exists: false } 
+                })
+            }
+        ]);
+
+        res.json({
+            success: true,
+            data: {
+                flaggedContent: {
+                    swaps: flaggedSwaps,
+                    count: flaggedSwaps.length
+                },
+                reportedUsers: {
+                    users: reportedUsers,
+                    count: reportedUsers.length
+                },
+                pendingReviews: {
+                    reviews: pendingReviews,
+                    count: pendingReviews.length
+                },
+                recentActions: {
+                    actions: recentModerationActions,
+                    count: recentModerationActions.length
+                },
+                statistics: contentStats
+            }
+        });
+
+    } catch (err) {
+        console.error('Moderation dashboard error:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while fetching moderation dashboard'
+        });
+    }
+});
+
+// Bulk actions for content moderation
+router.post('/moderation/bulk-action', adminAuth, [
+    body('action').isIn(['ban', 'unban', 'flag', 'unflag', 'hide', 'unhide']).withMessage('Invalid action'),
+    body('targetType').isIn(['users', 'swaps', 'reviews']).withMessage('Invalid target type'),
+    body('targetIds').isArray().withMessage('Target IDs must be an array'),
+    body('reason').optional().trim().isLength({ max: 500 }).withMessage('Reason cannot exceed 500 characters')
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation failed',
+                errors: errors.array()
+            });
+        }
+
+        const { action, targetType, targetIds, reason } = req.body;
+
+        let updateData = {};
+        let Model;
+
+        // Determine the model and update data based on target type and action
+        switch (targetType) {
+            case 'users':
+                Model = User;
+                if (action === 'ban') {
+                    updateData = {
+                        isActive: false,
+                        banReason: reason,
+                        bannedAt: new Date(),
+                        bannedBy: req.user.id
+                    };
+                } else if (action === 'unban') {
+                    updateData = {
+                        isActive: true,
+                        banReason: null,
+                        bannedAt: null,
+                        bannedBy: null
+                    };
+                }
+                break;
+
+            case 'swaps':
+                Model = SwapRequest;
+                if (action === 'flag') {
+                    updateData = {
+                        isFlagged: true,
+                        flagReason: reason,
+                        flaggedAt: new Date(),
+                        flaggedBy: req.user.id
+                    };
+                } else if (action === 'unflag') {
+                    updateData = {
+                        isFlagged: false,
+                        flagReason: null,
+                        flaggedAt: null,
+                        flaggedBy: null
+                    };
+                }
+                break;
+
+            case 'reviews':
+                Model = Review;
+                if (action === 'hide') {
+                    updateData = { isHidden: true };
+                } else if (action === 'unhide') {
+                    updateData = { isHidden: false };
+                }
+                break;
+        }
+
+        if (Object.keys(updateData).length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid action for target type'
+            });
+        }
+
+        const result = await Model.updateMany(
+            { _id: { $in: targetIds } },
+            { $set: updateData }
+        );
+
+        res.json({
+            success: true,
+            message: `Bulk ${action} completed successfully`,
+            data: {
+                modifiedCount: result.modifiedCount,
+                action,
+                targetType,
+                targetIds: targetIds.length
+            }
+        });
+
+    } catch (err) {
+        console.error('Bulk moderation action error:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while performing bulk action'
+        });
+    }
+});
+
+// Get all notifications (admin view)
+router.get('/notifications', adminAuth, [
+    query('type').optional().isIn(['info', 'warning', 'maintenance', 'feature', 'system']),
+    query('priority').optional().isIn(['low', 'medium', 'high', 'urgent']),
+    query('isActive').optional().isBoolean().toBoolean(),
+    query('page').optional().isInt({ min: 1 }).toInt(),
+    query('limit').optional().isInt({ min: 1, max: 100 }).toInt()
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid query parameters',
+                errors: errors.array()
+            });
+        }
+
+        const {
+            type,
+            priority,
+            isActive,
+            page = 1,
+            limit = 25
+        } = req.query;
+
+        let query = {};
+        if (type) query.type = type;
+        if (priority) query.priority = priority;
+        if (typeof isActive === 'boolean') query.isActive = isActive;
+
+        const skip = (page - 1) * limit;
+
+        const [notifications, total] = await Promise.all([
+            Notification.find(query)
+                .populate('sentBy', 'name email role')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Notification.countDocuments(query)
+        ]);
+
+        const totalPages = Math.ceil(total / limit);
+
+        res.json({
+            success: true,
+            data: {
+                notifications,
+                pagination: {
+                    current: page,
+                    pages: totalPages,
+                    total,
+                    limit,
+                    hasNext: page < totalPages,
+                    hasPrev: page > 1
+                }
+            }
+        });
+
+    } catch (err) {
+        console.error('Get notifications error:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while fetching notifications'
+        });
+    }
+});
+
+// Update notification status
+router.put('/notifications/:notificationId', adminAuth, [
+    body('isActive').optional().isBoolean(),
+    body('expiresAt').optional().isISO8601().toDate()
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation failed',
+                errors: errors.array()
+            });
+        }
+
+        const { notificationId } = req.params;
+        const updateData = req.body;
+
+        const notification = await Notification.findByIdAndUpdate(
+            notificationId,
+            { $set: updateData },
+            { new: true }
+        ).populate('sentBy', 'name email role');
+
+        if (!notification) {
+            return res.status(404).json({
+                success: false,
+                message: 'Notification not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Notification updated successfully',
+            data: { notification }
+        });
+
+    } catch (err) {
+        console.error('Update notification error:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while updating notification'
+        });
+    }
+});
+
+// Delete notification
+router.delete('/notifications/:notificationId', adminAuth, async (req, res) => {
+    try {
+        const { notificationId } = req.params;
+
+        const notification = await Notification.findByIdAndDelete(notificationId);
+
+        if (!notification) {
+            return res.status(404).json({
+                success: false,
+                message: 'Notification not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Notification deleted successfully'
+        });
+
+    } catch (err) {
+        console.error('Delete notification error:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while deleting notification'
+        });
+    }
+});
+
+// Get platform statistics for admin dashboard
+router.get('/statistics/overview', adminAuth, async (req, res) => {
+    try {
+        const [
+            userStats,
+            swapStats,
+            reviewStats,
+            notificationStats,
+            recentActivity
+        ] = await Promise.all([
+            // User statistics
+            User.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: 1 },
+                        active: { $sum: { $cond: ['$isActive', 1, 0] } },
+                        verified: { $sum: { $cond: ['$isEmailVerified', 1, 0] } },
+                        banned: { $sum: { $cond: [{ $ne: ['$banReason', null] }, 1, 0] } }
+                    }
+                }
+            ]),
+
+            // Swap statistics
+            SwapRequest.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: 1 },
+                        pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+                        accepted: { $sum: { $cond: [{ $eq: ['$status', 'accepted'] }, 1, 0] } },
+                        completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+                        flagged: { $sum: { $cond: ['$isFlagged', 1, 0] } }
+                    }
+                }
+            ]),
+
+            // Review statistics
+            Review.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: 1 },
+                        averageRating: { $avg: '$rating.overall' },
+                        hidden: { $sum: { $cond: ['$isHidden', 1, 0] } }
+                    }
+                }
+            ]),
+
+            // Notification statistics
+            Notification.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: 1 },
+                        active: { $sum: { $cond: ['$isActive', 1, 0] } },
+                        broadcast: { $sum: { $cond: [{ $eq: ['$recipient', null] }, 1, 0] } }
+                    }
+                }
+            ]),
+
+            // Recent activity (last 24 hours)
+            Promise.all([
+                User.countDocuments({ 
+                    createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+                }),
+                SwapRequest.countDocuments({ 
+                    createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+                }),
+                Review.countDocuments({ 
+                    createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+                })
+            ])
+        ]);
+
+        const [newUsers24h, newSwaps24h, newReviews24h] = recentActivity;
+
+        res.json({
+            success: true,
+            data: {
+                users: userStats[0] || { total: 0, active: 0, verified: 0, banned: 0 },
+                swaps: swapStats[0] || { total: 0, pending: 0, accepted: 0, completed: 0, flagged: 0 },
+                reviews: reviewStats[0] || { total: 0, averageRating: 0, hidden: 0 },
+                notifications: notificationStats[0] || { total: 0, active: 0, broadcast: 0 },
+                recentActivity: {
+                    newUsers24h,
+                    newSwaps24h,
+                    newReviews24h
+                },
+                lastUpdated: new Date().toISOString()
+            }
+        });
+
+    } catch (err) {
+        console.error('Get statistics overview error:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while fetching statistics'
         });
     }
 });

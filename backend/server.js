@@ -62,7 +62,7 @@ mongoose
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/swap-requests', swapRoutes);
-// app.use('/api/swap-requests', swapRoutes); 
+app.use('/api/admin', adminRoutes); 
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
