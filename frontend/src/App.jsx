@@ -1,4 +1,3 @@
-// App.jsx ✅ FIXED
 import React from 'react';
 import { Routes, Route } from 'react-router-dom'; // No BrowserRouter here
 import { AuthProvider } from './contexts/AuthContext';
@@ -8,7 +7,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ProfilePage from './pages/ProfilePage';
 import SwapRequestsPage from './pages/SwapRequestsPage';
-import AdminDashboard from './pages/AdminDashboard';
+
 
 function App() {
   return (
@@ -22,7 +21,6 @@ function App() {
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/swap-requests" element={<SwapRequestsPage />} />
-            <Route path="/admin" element={<AdminDashboard />} />
           </Routes>
         </main>
       </div>

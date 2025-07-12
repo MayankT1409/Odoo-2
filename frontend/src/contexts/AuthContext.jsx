@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }) => {
         availability: 'Weekends',
         isPublic: true
       };
-      
+
       setUser(mockUser);
       localStorage.setItem('user', JSON.stringify(mockUser));
       return { success: true };
@@ -49,24 +49,26 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signup = async (userData) => {
-    try {
-      // Mock signup - replace with actual API call
-      const newUser = {
-        id: Date.now(),
-        ...userData,
-        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-        role: 'user',
-        rating: 0,
-        isPublic: true
-      };
-      
-      setUser(newUser);
-      localStorage.setItem('user', JSON.stringify(newUser));
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
+  try {
+    const res = await fetch("http://localhost:5000/api/auth/signup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json", // <-- important
+      },
+      body: JSON.stringify(userData),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.msg || "Signup failed" };
     }
-  };
+    return { success: true, data };
+  } catch (err) {
+    console.error("Signup error:", err);
+    return { success: false, error: "Network error" };
+  }
+};
+
 
   const logout = () => {
     setUser(null);

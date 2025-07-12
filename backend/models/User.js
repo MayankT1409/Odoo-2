@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
-// Define User Schema for SkillSwap Platform
 const UserSchema = new mongoose.Schema(
   {
     name: {

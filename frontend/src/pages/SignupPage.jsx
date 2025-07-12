@@ -10,7 +10,7 @@ const SignupPage = () => {
     password: '',
     confirmPassword: '',
     location: '',
-    availability: 'weekends'
+    availability: 'Weekends'
   });
   const [skillsOffered, setSkillsOffered] = useState([]);
   const [skillsWanted, setSkillsWanted] = useState([]);
@@ -20,7 +20,7 @@ const SignupPage = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const { signup } = useAuth();
   const navigate = useNavigate();
 
@@ -86,7 +86,7 @@ const SignupPage = () => {
         skillsOffered,
         skillsWanted
       };
-      
+
       const result = await signup(userData);
       if (result.success) {
         navigate('/');
@@ -249,11 +249,12 @@ const SignupPage = () => {
                   name="availability"
                   value={formData.availability}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="..."
                 >
-                  <option value="weekends">Weekends</option>
-                  <option value="evenings">Evenings</option>
-                  <option value="weekdays">Weekdays</option>
+                  <option value="Weekdays">Weekdays</option>
+                  <option value="Evenings">Evenings</option>
+                  <option value="Weekends">Weekends</option>
+                  <option value="Flexible">Flexible</option>
                 </select>
               </div>
             </div>
@@ -283,7 +284,7 @@ const SignupPage = () => {
               </div>
               <div className="flex flex-wrap gap-2">
                 {skillsOffered.map((skill, index) => (
-                  <span 
+                  <span
                     key={index}
                     className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
                   >
@@ -325,7 +326,7 @@ const SignupPage = () => {
               </div>
               <div className="flex flex-wrap gap-2">
                 {skillsWanted.map((skill, index) => (
-                  <span 
+                  <span
                     key={index}
                     className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
                   >
@@ -368,8 +369,8 @@ const SignupPage = () => {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Already have an account?{' '}
-              <Link 
-                to="/login" 
+              <Link
+                to="/login"
                 className="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200"
               >
                 Sign in here
