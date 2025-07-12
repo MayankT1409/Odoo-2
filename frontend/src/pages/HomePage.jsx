@@ -105,6 +105,10 @@ const HomePage = () => {
                 key={userProfile._id} 
                 user={userProfile} 
                 currentUser={user}
+                onRequestSent={(newRequest) => {
+                  // Optional: Show success message or update UI
+                  console.log('Request sent successfully:', newRequest);
+                }}
               />
             ))}
           </div>

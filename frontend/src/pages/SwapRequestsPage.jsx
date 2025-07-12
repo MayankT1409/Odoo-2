@@ -7,45 +7,86 @@ const SwapRequestsPage = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('received');
+  const [error, setError] = useState('');
+
+  const fetchRequests = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await axios.get('http://localhost:5000/api/swap-requests', {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setRequests(res.data.data.swaps || []);
+    } catch (err) {
+      console.error('Error fetching requests:', err);
+      setError('Failed to load swap requests');
+      setRequests([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchRequests = async () => {
-      setLoading(true);
-      try {
-        const res = await axios.get('http://localhost:5000/api/swap-requests', {
-          headers: { Authorization: `Bearer ${authToken}` }
-        });
-        setRequests(res.data.data.swaps || []);
-      } catch (err) {
-        setRequests([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchRequests();
+    if (authToken) {
+      fetchRequests();
+    }
   }, [authToken]);
+
+  // Listen for custom events to refresh requests
+  useEffect(() => {
+    const handleRequestSent = () => {
+      fetchRequests();
+    };
+
+    window.addEventListener('swapRequestSent', handleRequestSent);
+    return () => {
+      window.removeEventListener('swapRequestSent', handleRequestSent);
+    };
+  }, []);
 
   // Approve a request
   const handleApprove = async (swapId) => {
-    await axios.put(`http://localhost:5000/api/swap-requests/${swapId}/accept`, {}, {
-      headers: { Authorization: `Bearer ${authToken}` }
-    });
-    setRequests(requests =>
-      requests.map(r => r._id === swapId ? { ...r, status: 'accepted' } : r)
-    );
+    try {
+      await axios.put(`http://localhost:5000/api/swap-requests/${swapId}/accept`, {}, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setRequests(requests =>
+        requests.map(r => r._id === swapId ? { ...r, status: 'accepted' } : r)
+      );
+    } catch (err) {
+      console.error('Error approving request:', err);
+      setError('Failed to approve request');
+    }
   };
 
   // Reject a request
   const handleReject = async (swapId) => {
-    await axios.put(`http://localhost:5000/api/swap-requests/${swapId}/reject`, {}, {
-      headers: { Authorization: `Bearer ${authToken}` }
-    });
-    setRequests(requests =>
-      requests.map(r => r._id === swapId ? { ...r, status: 'rejected' } : r)
-    );
+    try {
+      await axios.put(`http://localhost:5000/api/swap-requests/${swapId}/reject`, {}, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setRequests(requests =>
+        requests.map(r => r._id === swapId ? { ...r, status: 'rejected' } : r)
+      );
+    } catch (err) {
+      console.error('Error rejecting request:', err);
+      setError('Failed to reject request');
+    }
   };
 
-  if (loading) return <div>Loading...</div>;
+  // Refresh requests
+  const handleRefresh = () => {
+    fetchRequests();
+  };
+
+  if (loading) return (
+    <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2">Loading requests...</span>
+      </div>
+    </div>
+  );
 
   // Split requests into received and sent
   const received = requests.filter(r => r.recipient._id === user._id);
@@ -53,7 +94,21 @@ const SwapRequestsPage = () => {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <h2 className="text-2xl font-bold mb-6">Swap Requests</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold">Swap Requests</h2>
+        <button
+          onClick={handleRefresh}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+          <span className="text-red-700 text-sm">{error}</span>
+        </div>
+      )}
       <div className="flex gap-4 mb-6">
         <button
           className={`px-4 py-2 rounded ${activeTab === 'received' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}

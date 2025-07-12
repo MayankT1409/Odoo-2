@@ -148,8 +148,12 @@ router.post('/', auth, [
         .withMessage('Invalid priority level')
 ], async (req, res) => {
     try {
+        console.log('📝 Received swap request data:', req.body);
+        console.log('👤 User from auth:', req.user);
+        
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
+            console.log('❌ Validation errors:', errors.array());
             return res.status(400).json({
                 success: false,
                 message: 'Validation failed',

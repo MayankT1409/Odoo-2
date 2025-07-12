@@ -1,19 +1,28 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  StarIcon, 
-  MapPinIcon, 
+import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  StarIcon,
+  MapPinIcon,
   ClockIcon,
   PaperAirplaneIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
-const UserCard = ({ user, currentUser }) => {
+const UserCard = ({ user, currentUser, onRequestSent }) => {
   const navigate = useNavigate();
+  const { authToken } = useAuth();
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestMessage, setRequestMessage] = useState('');
   const [requestSent, setRequestSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [skillOffered, setSkillOffered] = useState('');
+  const [skillWanted, setSkillWanted] = useState('');
+  const [learningMode, setLearningMode] = useState('Both');
+  const [estimatedHours, setEstimatedHours] = useState(5);
 
   const handleRequestClick = () => {
     if (!currentUser) {
@@ -23,16 +32,86 @@ const UserCard = ({ user, currentUser }) => {
     setShowRequestModal(true);
   };
 
-  const handleSendRequest = () => {
-    // Mock sending request
-    setRequestSent(true);
-    setShowRequestModal(false);
-    setRequestMessage('');
-    
-    // Reset after 3 seconds
-    setTimeout(() => {
-      setRequestSent(false);
-    }, 3000);
+  const handleSendRequest = async () => {
+    if (!skillOffered.trim() || !skillWanted.trim()) {
+      setError('Please fill in both skills');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      console.log('Sending request with data:', {
+        recipient: user._id || user.id,
+        skillOffered: skillOffered.trim(),
+        skillWanted: skillWanted.trim(),
+        message: requestMessage.trim(),
+        learningMode,
+        duration: {
+          estimatedHours: parseInt(estimatedHours)
+        }
+      });
+
+      const response = await axios.post('http://localhost:5000/api/swap-requests', {
+        recipient: user._id || user.id,
+        skillOffered: skillOffered.trim(),
+        skillWanted: skillWanted.trim(),
+        message: requestMessage.trim(),
+        learningMode,
+        duration: {
+          estimatedHours: parseInt(estimatedHours)
+        }
+      }, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data.success) {
+        setRequestSent(true);
+        setShowRequestModal(false);
+
+        // Reset form
+        setRequestMessage('');
+        setSkillOffered('');
+        setSkillWanted('');
+        setLearningMode('Both');
+        setEstimatedHours(5);
+
+        // Notify parent component
+        if (onRequestSent) {
+          onRequestSent(response.data.data.swapRequest);
+        }
+
+        // Dispatch custom event to notify SwapRequestsPage
+        window.dispatchEvent(new CustomEvent('swapRequestSent', {
+          detail: response.data.data.swapRequest
+        }));
+
+        // Reset success message after 3 seconds
+        setTimeout(() => {
+          setRequestSent(false);
+        }, 3000);
+      }
+    } catch (err) {
+      console.error('Error sending swap request:', err);
+      if (err.response) {
+        console.error('❌ Backend Response Error:', err.response.data);
+        setError(
+          err.response?.data?.message || 
+          err.response?.data?.errors?.[0]?.msg ||
+          'Failed to send request. Please try again.'
+        );
+      } else {
+        console.error('❌ Network Error:', err.message);
+        setError('Network error. Please check your connection.');
+      }
+    }
+    finally {
+      setLoading(false);
+    }
   };
 
   const renderStars = (rating) => {
@@ -71,8 +150,8 @@ const UserCard = ({ user, currentUser }) => {
         {/* Profile Header */}
         <div className="p-6 pb-4">
           <div className="flex items-center space-x-4 mb-4">
-            <img 
-              src={user.avatar} 
+            <img
+              src={user.avatar}
               alt={user.name}
               className="w-16 h-16 rounded-full object-cover border-2 border-gray-100 cursor-pointer"
               onClick={() => navigate(`/profile/${user.id}`)}
@@ -110,7 +189,7 @@ const UserCard = ({ user, currentUser }) => {
             <h4 className="text-sm font-medium text-gray-700 mb-2">Skills Offered</h4>
             <div className="flex flex-wrap gap-2">
               {user.skillsOffered.map((skill, index) => (
-                <span 
+                <span
                   key={index}
                   className="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full"
                 >
@@ -125,7 +204,7 @@ const UserCard = ({ user, currentUser }) => {
             <h4 className="text-sm font-medium text-gray-700 mb-2">Skills Wanted</h4>
             <div className="flex flex-wrap gap-2">
               {user.skillsWanted.map((skill, index) => (
-                <span 
+                <span
                   key={index}
                   className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full"
                 >
@@ -168,36 +247,114 @@ const UserCard = ({ user, currentUser }) => {
       {/* Request Modal */}
       {showRequestModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+          <div className="bg-white rounded-lg max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Send Swap Request to {user.name}
             </h3>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Message (Optional)
-              </label>
-              <textarea
-                value={requestMessage}
-                onChange={(e) => setRequestMessage(e.target.value)}
-                placeholder="Hi! I'd love to exchange skills with you..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows={4}
-              />
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <div className="flex items-center space-x-2 text-red-700">
+                  <ExclamationTriangleIcon className="w-5 h-5" />
+                  <span className="text-sm">{error}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Skill You're Offering *
+                </label>
+                <input
+                  type="text"
+                  value={skillOffered}
+                  onChange={(e) => setSkillOffered(e.target.value)}
+                  placeholder="e.g., JavaScript, Guitar, Photography"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Skill You Want to Learn *
+                </label>
+                <input
+                  type="text"
+                  value={skillWanted}
+                  onChange={(e) => setSkillWanted(e.target.value)}
+                  placeholder="e.g., Python, Piano, Design"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Learning Mode
+                </label>
+                <select
+                  value={learningMode}
+                  onChange={(e) => setLearningMode(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="Online">Online</option>
+                  <option value="In-Person">In-Person</option>
+                  <option value="Both">Both</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Estimated Hours
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={estimatedHours}
+                  onChange={(e) => setEstimatedHours(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Message (Optional)
+                </label>
+                <textarea
+                  value={requestMessage}
+                  onChange={(e) => setRequestMessage(e.target.value)}
+                  placeholder="Hi! I'd love to exchange skills with you..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={3}
+                />
+              </div>
             </div>
 
-            <div className="flex space-x-3">
+            <div className="flex space-x-3 mt-6">
               <button
-                onClick={() => setShowRequestModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors duration-200"
+                onClick={() => {
+                  setShowRequestModal(false);
+                  setError('');
+                }}
+                disabled={loading}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSendRequest}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200"
+                disabled={loading}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 flex items-center justify-center space-x-2"
               >
-                Send Request
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Sending...</span>
+                  </>
+                ) : (
+                  <span>Send Request</span>
+                )}
               </button>
             </div>
           </div>
