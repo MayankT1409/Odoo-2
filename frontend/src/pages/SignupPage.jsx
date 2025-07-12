@@ -79,10 +79,10 @@ const SignupPage = () => {
     }
 
     setLoading(true);
-
+    const { confirmPassword, ...rest } = formData;
     try {
       const userData = {
-        ...formData,
+        ...rest,
         skillsOffered,
         skillsWanted
       };
