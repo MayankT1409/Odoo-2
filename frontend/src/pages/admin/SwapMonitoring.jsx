@@ -26,7 +26,12 @@ const SwapMonitoring = () => {
     total: 0,
     limit: 25
   });
-  const [statistics, setStatistics] = useState({});
+  const [statistics, setStatistics] = useState({
+    totalActive: 0,
+    totalPending: 0,
+    totalCompleted: 0,
+    totalFlagged: 0
+  });
 
   useEffect(() => {
     fetchSwaps();
@@ -52,9 +57,15 @@ const SwapMonitoring = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setSwaps(data.data.swaps);
-        setPagination(data.data.pagination);
-        setStatistics(data.data.statistics);
+        setSwaps(data.data?.swaps || []);
+        setPagination(data.data?.pagination || { current: 1, pages: 1, total: 0, limit: 25 });
+        setStatistics(data.data?.statistics || {
+          totalActive: 0,
+          totalPending: 0,
+          totalCompleted: 0,
+          totalFlagged: 0
+        });
+        setError(''); // Clear any previous errors
       } else {
         setError('Failed to fetch swap data');
       }
@@ -153,7 +164,7 @@ const SwapMonitoring = () => {
                       Active Swaps
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {statistics.totalActive || 0}
+                      {statistics?.totalActive || 0}
                     </dd>
                   </dl>
                 </div>
@@ -173,7 +184,7 @@ const SwapMonitoring = () => {
                       Flagged
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {statistics.totalFlagged || 0}
+                      {statistics?.totalFlagged || 0}
                     </dd>
                   </dl>
                 </div>
@@ -193,7 +204,7 @@ const SwapMonitoring = () => {
                       Overdue
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {swaps.filter(s => isOverdue(s)).length}
+                      {(swaps || []).filter(s => isOverdue(s)).length}
                     </dd>
                   </dl>
                 </div>

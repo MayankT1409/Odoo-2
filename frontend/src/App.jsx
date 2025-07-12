@@ -8,16 +8,14 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ProfilePage from './pages/ProfilePage';
 import SwapRequestsPage from './pages/SwapRequestsPage';
-import './utils/apiTest'; // Import API test for debugging
-
-// Admin Pages
+import UserProfilePage from './pages/UserProfilePage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
 import SwapMonitoring from './pages/admin/SwapMonitoring';
 import BroadcastMessages from './pages/admin/BroadcastMessages';
 import ReportsDownload from './pages/admin/ReportsDownload';
 import ContentModeration from './pages/admin/ContentModeration';
-import TestAdminAPI from './pages/TestAdminAPI';
+
 
 
 function App() {
@@ -34,25 +32,40 @@ function App() {
             } />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
-            <Route path="/profile" element={
-              <AdminRoute redirectTo="/admin/dashboard" adminOnly={false}>
-                <ProfilePage />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile/:userId" element={<UserProfilePage />} />
+            <Route path="/swap-requests" element={<SwapRequestsPage />} />
+            <Route path="/admin/dashboard" element={
+              <AdminRoute>
+                <AdminDashboard />
               </AdminRoute>
             } />
-            <Route path="/swap-requests" element={
-              <AdminRoute redirectTo="/admin/dashboard" adminOnly={false}>
-                <SwapRequestsPage />
+            <Route path="/admin/users" element={
+              <AdminRoute>
+                <UserManagement />
               </AdminRoute>
             } />
-            
-            {/* Admin Routes */}
-            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-            <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-            <Route path="/admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
-            <Route path="/admin/swaps" element={<AdminRoute><SwapMonitoring /></AdminRoute>} />
-            <Route path="/admin/messages" element={<AdminRoute><BroadcastMessages /></AdminRoute>} />
-            <Route path="/admin/reports" element={<AdminRoute><ReportsDownload /></AdminRoute>} />
-            <Route path="/admin/moderation" element={<AdminRoute><ContentModeration /></AdminRoute>} />
+            <Route path="/admin/swaps" element={
+              <AdminRoute>
+                <SwapMonitoring />
+              </AdminRoute>
+            } />
+            <Route path="/admin/content" element={
+              <AdminRoute>
+                <ContentModeration />
+              </AdminRoute>
+            } />
+            <Route path="/admin/messages" element={
+              <AdminRoute>
+                <BroadcastMessages />
+              </AdminRoute>
+            } />
+            <Route path="/admin/reports" element={
+              <AdminRoute>
+                <ReportsDownload />
+              </AdminRoute>
+            } />
+
           </Routes>
         </main>
       </div>

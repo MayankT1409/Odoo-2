@@ -5,6 +5,7 @@ const SwapRequest = require('../models/SwapRequest');
 const Review = require('../models/Review');
 const { adminAuth } = require('../middleware/auth');
 const router = express.Router();
+const adminController = require('../controllers/adminController');
 
 // Get admin dashboard statistics
 router.get('/dashboard', adminAuth, async (req, res) => {
