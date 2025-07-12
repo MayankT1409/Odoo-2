@@ -5,6 +5,37 @@ const SwapRequest = require('../models/SwapRequest');
 const Review = require('../models/Review');
 const { auth, optionalAuth } = require('../middleware/auth');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+
+// Multer storage config
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, '../uploads'));
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname);
+    const uniqueName = `avatar_${req.user.id}_${Date.now()}${ext}`;
+    cb(null, uniqueName);
+  }
+});
+const upload = multer({ storage });
+
+// Avatar upload endpoint
+router.post('/upload-avatar', auth, upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+    // Return full URL for avatar
+    const avatarUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    await User.findByIdAndUpdate(req.user.id, { avatar: avatarUrl });
+    res.json({ success: true, avatarUrl });
+  } catch (err) {
+    console.error('Avatar upload error:', err);
+    res.status(500).json({ success: false, message: 'Server error during avatar upload' });
+  }
+});
 
 // Get all public users with optional filtering
 router.get('/', optionalAuth, [

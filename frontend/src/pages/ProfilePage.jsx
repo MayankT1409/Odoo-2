@@ -11,9 +11,10 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import axios from 'axios';
 
 const ProfilePage = () => {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, authToken } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -25,6 +26,8 @@ const ProfilePage = () => {
   const [skillsWanted, setSkillsWanted] = useState(user?.skillsWanted || []);
   const [newSkillOffered, setNewSkillOffered] = useState('');
   const [newSkillWanted, setNewSkillWanted] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef();
 
   if (!user) {
     return (
@@ -120,6 +123,32 @@ const ProfilePage = () => {
     return stars;
   };
 
+  // Handle avatar upload
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      // You may need to adjust the endpoint depending on your backend
+      const res = await axios.post('http://localhost:5000/api/users/upload-avatar', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${authToken}`
+        },
+        withCredentials: false,
+      });
+      if (res.data && res.data.avatarUrl) {
+        updateProfile({ avatar: res.data.avatarUrl });
+      }
+    } catch (err) {
+      alert('Failed to upload avatar.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -155,11 +184,29 @@ const ProfilePage = () => {
 
           {/* Profile Info */}
           <div className="flex items-start space-x-6">
-            <img 
-              src={user.avatar} 
-              alt={user.name}
-              className="w-24 h-24 rounded-full object-cover border-4 border-gray-100"
-            />
+            <div className="relative flex flex-col items-center">
+              <img 
+                src={user.avatar} 
+                alt={user.name}
+                className="w-24 h-24 rounded-full object-cover border-4 border-gray-100"
+              />
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                onChange={handleAvatarChange}
+                disabled={uploading}
+              />
+              <button
+                type="button"
+                className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
+                onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                disabled={uploading}
+              >
+                {uploading ? 'Uploading...' : 'Change Photo'}
+              </button>
+            </div>
             <div className="flex-1">
               {isEditing ? (
                 <div className="space-y-4">
