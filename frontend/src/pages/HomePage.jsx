@@ -19,28 +19,26 @@ const HomePage = () => {
     const fetchUsers = async () => {
       try {
         const res = await axios.get('http://localhost:5000/api/users');
-        // Adjust if your API response structure is different
-        const publicUsers = (res.data.data?.users || res.data.users || []).filter(u => u.isPublic && (!user || u._id !== user._id));
-        setUsers(publicUsers);
-        setFilteredUsers(publicUsers);
+        setUsers(res.data.data.users);
+        setFilteredUsers(res.data.data.users);
       } catch (err) {
         setUsers([]);
         setFilteredUsers([]);
       }
     };
     fetchUsers();
-  }, [user]);
+  }, []);
 
   // Filter users based on search and availability
   useEffect(() => {
     let filtered = users;
 
     if (searchTerm) {
-      filtered = filtered.filter(user =>
-        user.skillsOffered.some(skill =>
+      filtered = filtered.filter(user => 
+        user.skillsOffered.some(skill => 
           skill.toLowerCase().includes(searchTerm.toLowerCase())
         ) ||
-        user.skillsWanted.some(skill =>
+        user.skillsWanted.some(skill => 
           skill.toLowerCase().includes(searchTerm.toLowerCase())
         ) ||
         user.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -48,7 +46,7 @@ const HomePage = () => {
     }
 
     if (availabilityFilter) {
-      filtered = filtered.filter(user =>
+      filtered = filtered.filter(user => 
         user.availability.toLowerCase() === availabilityFilter.toLowerCase()
       );
     }
@@ -77,7 +75,7 @@ const HomePage = () => {
             Connect, Learn, and Grow Together
           </p>
           <p className="text-lg opacity-80 max-w-3xl mx-auto">
-            Discover talented individuals ready to share their expertise and learn new skills.
+            Discover talented individuals ready to share their expertise and learn new skills. 
             Join our community of learners and teachers to exchange knowledge and build meaningful connections.
           </p>
         </div>
@@ -103,10 +101,14 @@ const HomePage = () => {
         {currentUsers.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {currentUsers.map(userProfile => (
-              <UserCard
-                key={userProfile._id}
-                user={userProfile}
+              <UserCard 
+                key={userProfile._id} 
+                user={userProfile} 
                 currentUser={user}
+                onRequestSent={(newRequest) => {
+                  // Optional: Show success message or update UI
+                  console.log('Request sent successfully:', newRequest);
+                }}
               />
             ))}
           </div>
@@ -139,12 +141,13 @@ const HomePage = () => {
 
             {[...Array(totalPages)].map((_, index) => (
               <button
-                key={`page-${index + 1}`}
+                key={index + 1}
                 onClick={() => paginate(index + 1)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${currentPage === index + 1
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                  currentPage === index + 1
                     ? 'bg-blue-600 text-white'
                     : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
+                }`}
               >
                 {index + 1}
               </button>
