@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import UserCard from '../components/UserCard';
 import SearchFilters from '../components/SearchFilters';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import axios from 'axios';
 
 const HomePage = () => {
   const { user } = useAuth();
@@ -13,106 +14,21 @@ const HomePage = () => {
   const [availabilityFilter, setAvailabilityFilter] = useState('');
   const usersPerPage = 6;
 
-  // Mock users data
+  // Fetch users from backend
   useEffect(() => {
-    const mockUsers = [
-      {
-        id: 1,
-        name: 'Marc Demo',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-        skillsOffered: ['JavaScript', 'React', 'Node.js'],
-        skillsWanted: ['Python', 'Machine Learning'],
-        rating: 4.2,
-        location: 'San Francisco, CA',
-        availability: 'Weekends',
-        isPublic: true
-      },
-      {
-        id: 2,
-        name: 'Michell',
-        avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
-        skillsOffered: ['Python', 'Data Science', 'Machine Learning'],
-        skillsWanted: ['JavaScript', 'Web Development'],
-        rating: 4.8,
-        location: 'New York, NY',
-        availability: 'Evenings',
-        isPublic: true
-      },
-      {
-        id: 3,
-        name: 'Joe Wills',
-        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-        skillsOffered: ['UI/UX Design', 'Figma', 'Adobe Creative Suite'],
-        skillsWanted: ['Frontend Development', 'React'],
-        rating: 4.5,
-        location: 'Los Angeles, CA',
-        availability: 'Weekdays',
-        isPublic: true
-      },
-      {
-        id: 4,
-        name: 'Sarah Chen',
-        avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
-        skillsOffered: ['Digital Marketing', 'SEO', 'Content Strategy'],
-        skillsWanted: ['Graphic Design', 'Photoshop'],
-        rating: 4.3,
-        location: 'Seattle, WA',
-        availability: 'Weekends',
-        isPublic: true
-      },
-      {
-        id: 5,
-        name: 'Alex Rodriguez',
-        avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face',
-        skillsOffered: ['Mobile Development', 'Flutter', 'iOS'],
-        skillsWanted: ['Backend Development', 'DevOps'],
-        rating: 4.6,
-        location: 'Austin, TX',
-        availability: 'Evenings',
-        isPublic: true
-      },
-      {
-        id: 6,
-        name: 'Emma Thompson',
-        avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face',
-        skillsOffered: ['Project Management', 'Agile', 'Scrum'],
-        skillsWanted: ['Data Analysis', 'Excel'],
-        rating: 4.1,
-        location: 'Chicago, IL',
-        availability: 'Weekdays',
-        isPublic: true
-      },
-      {
-        id: 7,
-        name: 'David Kim',
-        avatar: 'https://images.unsplash.com/photo-1507591064344-4c6ce005b128?w=150&h=150&fit=crop&crop=face',
-        skillsOffered: ['Cybersecurity', 'Network Security', 'Ethical Hacking'],
-        skillsWanted: ['Cloud Computing', 'AWS'],
-        rating: 4.7,
-        location: 'Boston, MA',
-        availability: 'Weekends',
-        isPublic: true
-      },
-      {
-        id: 8,
-        name: 'Lisa Wang',
-        avatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150&h=150&fit=crop&crop=face',
-        skillsOffered: ['Photography', 'Video Editing', 'Adobe Premiere'],
-        skillsWanted: ['Social Media Marketing', 'Instagram Growth'],
-        rating: 4.4,
-        location: 'Miami, FL',
-        availability: 'Evenings',
-        isPublic: true
+    const fetchUsers = async () => {
+      try {
+        const res = await axios.get('http://localhost:5000/api/users');
+        // Adjust if your API response structure is different
+        const publicUsers = (res.data.data?.users || res.data.users || []).filter(u => u.isPublic && (!user || u._id !== user._id));
+        setUsers(publicUsers);
+        setFilteredUsers(publicUsers);
+      } catch (err) {
+        setUsers([]);
+        setFilteredUsers([]);
       }
-    ];
-
-    // Filter out current user if logged in
-    const publicUsers = mockUsers.filter(mockUser => 
-      mockUser.isPublic && (!user || mockUser.id !== user.id)
-    );
-    
-    setUsers(publicUsers);
-    setFilteredUsers(publicUsers);
+    };
+    fetchUsers();
   }, [user]);
 
   // Filter users based on search and availability
