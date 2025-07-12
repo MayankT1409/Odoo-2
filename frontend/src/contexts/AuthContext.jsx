@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }) => {
       // Set default Authorization header for all future requests
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       
-      return { success: true };
+      return { success: true, user: userData };
     } catch (error) {
       console.error('Login error:', error);
       return { 
@@ -77,7 +77,13 @@ export const AuthProvider = ({ children }) => {
       if (!res.ok) {
         return { success: false, error: data.msg || "Signup failed" };
       }
-      return { success: true, data };
+      // Auto-login after successful signup
+      const loginResult = await login(userData.email, userData.password);
+      if (loginResult.success) {
+        return { success: true, user: loginResult.user };
+      } else {
+        return { success: true, data, needsLogin: true };
+      }
     } catch (err) {
       console.error("Signup error:", err);
       return { success: false, error: "Network error" };

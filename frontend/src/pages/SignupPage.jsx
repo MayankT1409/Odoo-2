@@ -10,7 +10,8 @@ const SignupPage = () => {
     password: '',
     confirmPassword: '',
     location: '',
-    availability: 'Weekends'
+    availability: 'Weekends',
+    role: 'user'
   });
   const [skillsOffered, setSkillsOffered] = useState([]);
   const [skillsWanted, setSkillsWanted] = useState([]);
@@ -68,14 +69,17 @@ const SignupPage = () => {
       return;
     }
 
-    if (skillsOffered.length === 0) {
-      setError('Please add at least one skill you can offer');
-      return;
-    }
+    // Only require skills for regular users, not admins
+    if (formData.role === 'user') {
+      if (skillsOffered.length === 0) {
+        setError('Please add at least one skill you can offer');
+        return;
+      }
 
-    if (skillsWanted.length === 0) {
-      setError('Please add at least one skill you want to learn');
-      return;
+      if (skillsWanted.length === 0) {
+        setError('Please add at least one skill you want to learn');
+        return;
+      }
     }
 
     setLoading(true);
@@ -89,7 +93,14 @@ const SignupPage = () => {
 
       const result = await signup(userData);
       if (result.success) {
-        navigate('/');
+        // Redirect based on user role
+        if (result.user && result.user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else if (result.needsLogin) {
+          navigate('/login');
+        } else {
+          navigate('/');
+        }
       } else {
         setError(result.error || 'Signup failed');
       }
@@ -223,6 +234,76 @@ const SignupPage = () => {
               </div>
             </div>
 
+            {/* Role Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Account Type *
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div 
+                  className={`relative cursor-pointer rounded-lg border p-4 transition-all duration-200 ${
+                    formData.role === 'user' 
+                      ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500' 
+                      : 'border-gray-300 bg-white hover:border-gray-400'
+                  }`}
+                  onClick={() => setFormData({...formData, role: 'user'})}
+                >
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      name="role"
+                      value="user"
+                      checked={formData.role === 'user'}
+                      onChange={handleInputChange}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <div className="ml-3">
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 text-blue-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+                        </svg>
+                        <label className="text-sm font-medium text-gray-900">Regular User</label>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Join to exchange skills with other users
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div 
+                  className={`relative cursor-pointer rounded-lg border p-4 transition-all duration-200 ${
+                    formData.role === 'admin' 
+                      ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-500' 
+                      : 'border-gray-300 bg-white hover:border-gray-400'
+                  }`}
+                  onClick={() => setFormData({...formData, role: 'admin'})}
+                >
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      name="role"
+                      value="admin"
+                      checked={formData.role === 'admin'}
+                      onChange={handleInputChange}
+                      className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300"
+                    />
+                    <div className="ml-3">
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 text-purple-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                        </svg>
+                        <label className="text-sm font-medium text-gray-900">Administrator</label>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Manage platform, users, and content moderation
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Location and Availability */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -249,7 +330,7 @@ const SignupPage = () => {
                   name="availability"
                   value={formData.availability}
                   onChange={handleInputChange}
-                  className="..."
+                  className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 >
                   <option value="Weekdays">Weekdays</option>
                   <option value="Evenings">Evenings</option>
@@ -259,7 +340,8 @@ const SignupPage = () => {
               </div>
             </div>
 
-            {/* Skills Offered */}
+            {/* Skills Offered - Only for regular users */}
+            {formData.role === 'user' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Skills You Can Offer *
@@ -300,8 +382,10 @@ const SignupPage = () => {
                 ))}
               </div>
             </div>
+            )}
 
-            {/* Skills Wanted */}
+            {/* Skills Wanted - Only for regular users */}
+            {formData.role === 'user' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Skills You Want to Learn *
@@ -342,6 +426,31 @@ const SignupPage = () => {
                 ))}
               </div>
             </div>
+            )}
+
+            {/* Admin Notice */}
+            {formData.role === 'admin' && (
+              <div className="bg-purple-50 border border-purple-200 rounded-md p-4">
+                <div className="flex">
+                  <svg className="w-5 h-5 text-purple-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+                  </svg>
+                  <div>
+                    <h3 className="text-sm font-medium text-purple-800">Administrator Account</h3>
+                    <p className="text-sm text-purple-700 mt-1">
+                      As an administrator, you'll have access to:
+                    </p>
+                    <ul className="text-sm text-purple-700 mt-2 list-disc list-inside space-y-1">
+                      <li>User management and moderation tools</li>
+                      <li>Content review and approval system</li>
+                      <li>Platform analytics and reporting</li>
+                      <li>System-wide messaging capabilities</li>
+                      <li>Swap request monitoring and management</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Submit Button */}
             <div>

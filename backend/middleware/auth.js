@@ -110,7 +110,7 @@ const adminAuth = async (req, res, next) => {
         });
 
         // Check if user is admin
-        if (req.userDetails && req.userDetails.role !== 'admin') {
+        if (!req.userDetails || req.userDetails.role !== 'admin') {
             return res.status(403).json({
                 success: false,
                 message: "Access denied. Admin privileges required."
@@ -120,10 +120,13 @@ const adminAuth = async (req, res, next) => {
         next();
     } catch (err) {
         console.error("Admin auth error:", err);
-        res.status(401).json({
-            success: false,
-            message: "Authentication failed"
-        });
+        // Don't send response if headers already sent
+        if (!res.headersSent) {
+            res.status(401).json({
+                success: false,
+                message: "Authentication failed"
+            });
+        }
     }
 };
 

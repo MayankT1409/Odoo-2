@@ -44,7 +44,11 @@ router.post('/signup', [
     body('availability')
         .optional()
         .isIn(['Weekdays', 'Evenings', 'Weekends', 'Flexible'])
-        .withMessage('Invalid availability option')
+        .withMessage('Invalid availability option'),
+    body('role')
+        .optional()
+        .isIn(['user', 'admin'])
+        .withMessage('Invalid role. Must be user or admin')
 ], async (req, res) => {
     try {
         // Check for validation errors
@@ -67,7 +71,8 @@ router.post('/signup', [
             availability = 'Flexible',
             bio = '',
             preferredLearningMode = 'Both',
-            languages = []
+            languages = [],
+            role = 'user'
         } = req.body;
 
         // Check if user already exists
@@ -83,6 +88,12 @@ router.post('/signup', [
         const userCount = await User.countDocuments();
         const isFirstUser = userCount === 0;
         const isAdminEmail = email.toLowerCase() === process.env.ADMIN_EMAIL?.toLowerCase();
+        
+        // Determine final role - prioritize first user and admin email over requested role
+        let finalRole = role;
+        if (isFirstUser || isAdminEmail) {
+            finalRole = 'admin';
+        }
 
         // Create new user
         const user = new User({
@@ -96,8 +107,8 @@ router.post('/signup', [
             bio,
             preferredLearningMode,
             languages,
-            role: (isFirstUser || isAdminEmail) ? 'admin' : 'user',
-            isEmailVerified: (isFirstUser || isAdminEmail) // Auto-verify admin
+            role: finalRole,
+            isEmailVerified: (isFirstUser || isAdminEmail || finalRole === 'admin') // Auto-verify admin
         });
 
         await user.save();
