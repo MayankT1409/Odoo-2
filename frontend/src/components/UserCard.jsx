@@ -74,7 +74,8 @@ const UserCard = ({ user, currentUser }) => {
             <img 
               src={user.avatar} 
               alt={user.name}
-              className="w-16 h-16 rounded-full object-cover border-2 border-gray-100"
+              className="w-16 h-16 rounded-full object-cover border-2 border-gray-100 cursor-pointer"
+              onClick={() => navigate(`/profile/${user.id}`)}
             />
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>

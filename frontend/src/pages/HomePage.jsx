@@ -19,17 +19,15 @@ const HomePage = () => {
     const fetchUsers = async () => {
       try {
         const res = await axios.get('http://localhost:5000/api/users');
-        // Adjust if your API response structure is different
-        const publicUsers = (res.data.data?.users || res.data.users || []).filter(u => u.isPublic && (!user || u._id !== user._id));
-        setUsers(publicUsers);
-        setFilteredUsers(publicUsers);
+        setUsers(res.data.data.users);
+        setFilteredUsers(res.data.data.users);
       } catch (err) {
         setUsers([]);
         setFilteredUsers([]);
       }
     };
     fetchUsers();
-  }, [user]);
+  }, []);
 
   // Filter users based on search and availability
   useEffect(() => {
@@ -85,7 +83,7 @@ const HomePage = () => {
 
       {/* Search and Filters */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <SearchFilters 
+        <SearchFilters
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           availabilityFilter={availabilityFilter}
@@ -104,7 +102,7 @@ const HomePage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {currentUsers.map(userProfile => (
               <UserCard 
-                key={userProfile.id} 
+                key={userProfile._id} 
                 user={userProfile} 
                 currentUser={user}
               />
